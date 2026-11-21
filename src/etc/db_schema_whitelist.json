@@ -1,0 +1,27 @@
+{
+    "catalog_product_customer_price": {
+        "column": {
+            "id": true,
+            "customer_id": true,
+            "product_id": true,
+            "price": true,
+            "discount": true,
+            "limit": true,
+            "priority": true,
+            "website_id": true,
+            "used": true,
+            "active": true,
+            "created_at": true,
+            "updated_at": true
+        },
+        "index": {
+            "CATALOG_PRODUCT_CUSTOMER_PRICE_LIMIT_USED": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "CAT_PRD_CSTR_PRICE_CSTR_ID_CSTR_ENTT_ENTT_ID": true,
+            "CAT_PRD_CSTR_PRICE_PRD_ID_CAT_PRD_ENTT_ENTT_ID": true,
+            "CAT_PRD_CSTR_PRICE_WS_ID_STORE_WS_WS_ID": true
+        }
+    }
+}

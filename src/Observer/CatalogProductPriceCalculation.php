@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+/**
+ * @author      Andreas Knollmann
+ * @copyright   Copyright (c) 2014-2026 Softwareentwicklung Andreas Knollmann
+ * @license     http://www.opensource.org/licenses/mit-license.php MIT
+ */
+
 namespace Infrangible\CatalogProductCustomerPrice\Observer;
 
 use FeWeDev\Base\Variables;
@@ -12,94 +18,90 @@ use Infrangible\CatalogProductPriceCalculation\Model\Calculations;
 use Infrangible\Core\Helper\Stores;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
+use Magento\Framework\Exception\LocalizedException;
 
 /**
- * @author      Andreas Knollmann
- * @copyright   2014-2025 Softwareentwicklung Andreas Knollmann
- * @license     http://www.opensource.org/licenses/mit-license.php MIT
+ * Adds the active customer prices of the website, whose limit is not used up, to the calculations.
  */
 class CatalogProductPriceCalculation implements ObserverInterface
 {
-    /** @var CollectionFactory */
-    protected $productCustomerPriceCollectionFactory;
-
-    /** @var ProductCustomerPriceFactory */
-    protected $productCustomerPriceCalculationFactory;
-
-    /** @var Variables */
-    protected $variables;
-
-    /** @var Stores */
-    protected $storeHelper;
-
+    /**
+     * @param ProductCustomerPriceFactory $productCustomerPriceCalculationFactory
+     * @param CollectionFactory $productCustomerPriceCollectionFactory
+     * @param Variables $variables
+     * @param Stores $storeHelper
+     */
     public function __construct(
-        ProductCustomerPriceFactory $productCustomerPriceCalculationFactory,
-        CollectionFactory $productCustomerPriceCollectionFactory,
-        Variables $variables,
-        Stores $storeHelper
+        protected ProductCustomerPriceFactory $productCustomerPriceCalculationFactory,
+        protected CollectionFactory $productCustomerPriceCollectionFactory,
+        protected Variables $variables,
+        protected Stores $storeHelper
     ) {
-        $this->productCustomerPriceCalculationFactory = $productCustomerPriceCalculationFactory;
-        $this->productCustomerPriceCollectionFactory = $productCustomerPriceCollectionFactory;
-        $this->variables = $variables;
-        $this->storeHelper = $storeHelper;
     }
 
     /**
-     * @throws \Exception
+     * Adds the customer prices to the calculations of the event.
+     *
+     * @param Observer $observer
+     *
+     * @return void
+     * @throws LocalizedException
      */
     public function execute(Observer $observer): void
     {
-        $website = $this->storeHelper->getWebsite();
-        $websiteId = $website->getId();
-
-        /** @var Calculations $calculations */
         $calculations = $observer->getData('calculations');
 
-        $productCustomerPriceCollection = $this->productCustomerPriceCollectionFactory->create();
-        $productCustomerPriceCollection->addUsableFilter();
-        $productCustomerPriceCollection->addActiveFilter();
-        $productCustomerPriceCollection->addPriorityOrder();
-        $productCustomerPriceCollection->addWebsiteFilter($this->variables->intValue($websiteId));
+        if (! $calculations instanceof Calculations) {
+            return;
+        }
+
+        $collection = $this->productCustomerPriceCollectionFactory->create();
+        $collection->addUsableFilter();
+        $collection->addActiveFilter();
+        $collection->addPriorityOrder();
+        $collection->addWebsiteFilter($this->variables->intValue($this->storeHelper->getWebsite()->getId()));
 
         /** @var ProductCustomerPrice $productCustomerPrice */
-        foreach ($productCustomerPriceCollection as $productCustomerPrice) {
-            $productCustomerPriceCalculation = $this->productCustomerPriceCalculationFactory->create();
+        foreach ($collection as $productCustomerPrice) {
+            $calculation = $this->productCustomerPriceCalculationFactory->create();
 
-            $productCustomerPriceCalculation->setCustomerId(
-                $this->variables->intValue($productCustomerPrice->getCustomerId())
-            );
+            $calculation->setCustomerPriceId($this->variables->intValue($productCustomerPrice->getId()));
+            $calculation->setCustomerId($this->variables->intValue($productCustomerPrice->getCustomerId()));
+            $calculation->setProductId($this->variables->intValue($productCustomerPrice->getProductId()));
+            $calculation->setPriority($this->variables->intValue($productCustomerPrice->getPriority()));
+            $calculation->setWebsiteId($this->variables->intValue($productCustomerPrice->getWebsiteId()));
 
-            $productCustomerPriceCalculation->setProductId(
-                $this->variables->intValue($productCustomerPrice->getProductId())
-            );
+            $price = $productCustomerPrice->getPrice();
 
-            if ($productCustomerPrice->getPrice()) {
-                $productCustomerPriceCalculation->setPrice(floatval($productCustomerPrice->getPrice()));
+            if (is_numeric($price)) {
+                $calculation->setPrice((float)$price);
             }
 
-            if ($productCustomerPrice->getDiscount()) {
-                $productCustomerPriceCalculation->setDiscount(
-                    $this->variables->intValue($productCustomerPrice->getDiscount())
-                );
+            $discount = $this->getInt($productCustomerPrice->getDiscount());
+
+            if ($discount > 0) {
+                $calculation->setDiscount($discount);
             }
 
-            $productCustomerPriceCalculation->setPriority(
-                $this->variables->intValue($productCustomerPrice->getPriority())
-            );
+            $limit = $this->getInt($productCustomerPrice->getLimit());
 
-            if ($productCustomerPrice->getLimit()) {
-                $productCustomerPriceCalculation->setLimit(
-                    $productCustomerPrice->getLimit() - $productCustomerPrice->getUsed()
-                );
+            if ($limit > 0) {
+                $calculation->setLimit(max(0, $limit - $this->getInt($productCustomerPrice->getUsed())));
             }
 
-            $productCustomerPriceCalculation->setWebsiteId(
-                $this->variables->intValue($productCustomerPrice->getWebsiteId())
-            );
-
-            $productCustomerPriceCalculation->setQuoteItemOptionCode($productCustomerPrice->getId());
-
-            $calculations->addCalculation($productCustomerPriceCalculation);
+            $calculations->addCalculation($calculation);
         }
+    }
+
+    /**
+     * Returns the value of a column that can be empty as number, 0 if it is empty.
+     *
+     * @param mixed $value
+     *
+     * @return int
+     */
+    private function getInt(mixed $value): int
+    {
+        return is_numeric($value) ? (int)$value : 0;
     }
 }

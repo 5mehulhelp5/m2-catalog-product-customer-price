@@ -1,64 +1,37 @@
-<?php /** @noinspection PhpDeprecationInspection */
+<?php
 
 declare(strict_types=1);
+
+/**
+ * @author      Andreas Knollmann
+ * @copyright   Copyright (c) 2014-2026 Softwareentwicklung Andreas Knollmann
+ * @license     http://www.opensource.org/licenses/mit-license.php MIT
+ */
 
 namespace Infrangible\CatalogProductCustomerPrice\Block\Adminhtml\ProductCustomerPrice\Tab;
 
 use Infrangible\BackendWidget\Block\Form\Tab;
+use Infrangible\CatalogProductCustomerPrice\Block\Adminhtml\ProductCustomerPrice\PriceFormFields;
+use Magento\Framework\Data\Form as DataForm;
 
 /**
- * @author      Andreas Knollmann
- * @copyright   2014-2024 Softwareentwicklung Andreas Knollmann
- * @license     http://www.opensource.org/licenses/mit-license.php MIT
+ * Form of a customer price of a customer, in the tab of the customer form.
  */
 class Form extends Tab
 {
+    use PriceFormFields;
+
     /**
-     * @throws \Exception
+     * Adds the fields.
+     *
+     * @param DataForm $form
+     *
+     * @return void
      */
-    protected function prepareFields(\Magento\Framework\Data\Form $form): void
+    protected function prepareFields(DataForm $form): void
     {
-        $fieldSet = $form->addFieldset(
-            'general',
-            ['legend' => __('General')]
-        );
+        $fieldSet = $form->addFieldset('general', ['legend' => __('General')]);
 
-        $this->addProductNameField(
-            $fieldSet,
-            'product_id',
-            __('Product')->render(),
-            true
-        );
-
-        $this->addPriceField(
-            $fieldSet,
-            'price',
-            __('Price')->render()
-        );
-
-        $this->addDiscountField(
-            $fieldSet,
-            'discount',
-            __('Discount')->render()
-        );
-
-        $this->addIntegerField(
-            $fieldSet,
-            'limit',
-            __('Limit')->render()
-        );
-
-        $this->addIntegerField(
-            $fieldSet,
-            'priority',
-            __('Priority')->render()
-        );
-
-        $this->addYesNoWithDefaultField(
-            $fieldSet,
-            'active',
-            __('Active')->render(),
-            1
-        );
+        $this->addPriceFields($fieldSet);
     }
 }
